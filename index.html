@@ -8,6 +8,20 @@
         body { font-family: Arial, sans-serif; text-align: center; }
         input[type="file"] { margin: 20px; }
         #output-image { margin-top: 20px; max-width: 100%; height: auto; }
+        #console-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            max-width: 600px;
+            margin: 20px auto;
+            text-align: left;
+            font-size: 0.9em;
+            color: #333;
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-line;
+        }
     </style>
 </head>
 <body>
@@ -15,32 +29,52 @@
     <p>Upload a map image to generate a province map.</p>
     <input type="file" id="mapInput" accept="image/*">
     <button onclick="uploadMap()">Generate Map</button>
-    <div id="output"></div>
-    <img id="output-image" src="" alt="Province Map">
+    <div id="output">
+        <img id="output-image" src="" alt="Province Map">
+    </div>
+
+    <!-- Console Panel -->
+    <div id="console-panel"></div>
 
     <script>
+        // Function to log messages to the console panel
+        function logToConsole(message) {
+            const consolePanel = document.getElementById('console-panel');
+            consolePanel.innerText += message + '\n';
+            consolePanel.scrollTop = consolePanel.scrollHeight;  // Auto-scroll to the bottom
+        }
+
         async function uploadMap() {
             const fileInput = document.getElementById('mapInput');
             if (!fileInput.files.length) {
                 alert("Please select a file.");
+                logToConsole("Error: No file selected.");
                 return;
             }
             
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
-            const response = await fetch("https://<your-flask-app-url>/upload", {
-                method: 'POST',
-                body: formData
-            });
+            logToConsole("Uploading map...");
+            
+            try {
+                const response = await fetch("https://<your-flask-app-url>/upload", {
+                    method: 'POST',
+                    body: formData
+                });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const imgUrl = URL.createObjectURL(blob);
-                document.getElementById('output-image').src = imgUrl;
-            } else {
-                const error = await response.json();
-                alert("Error: " + error.error);
+                if (response.ok) {
+                    logToConsole("Map processed successfully!");
+                    const blob = await response.blob();
+                    const imgUrl = URL.createObjectURL(blob);
+                    document.getElementById('output-image').src = imgUrl;
+                    logToConsole("Displaying processed map.");
+                } else {
+                    const error = await response.json();
+                    logToConsole("Error: " + error.error);
+                }
+            } catch (error) {
+                logToConsole("Error: Failed to upload map. " + error.message);
             }
         }
     </script>
