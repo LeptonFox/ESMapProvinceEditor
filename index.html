@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Province Map Generator</title>
+    <title>Binary Province Map Generator</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         input[type="file"] { margin: 20px; }
@@ -30,15 +30,31 @@
     </style>
 </head>
 <body>
-    <h1>Province Map Generator</h1>
-    <p>Upload a map image to generate a province map.</p>
+    <h1>Binary Province Map Generator</h1>
+    <p>Upload a map image to convert it to a binary water-land map.</p>
     <input type="file" id="mapInput" accept="image/*">
-    <button onclick="processMap()">Generate Map</button>
-    
+    <button onclick="processMap()">Generate Binary Map</button>
+
     <!-- Console Panel -->
     <div id="console-panel"></div>
 
     <canvas id="province-canvas"></canvas>
+
+    <h2>Configuration Variables</h2>
+    <table style="margin: 0 auto;">
+        <tr>
+            <td>Seed:</td>
+            <td><input type="number" id="seed" value="1" min="1" max="10"></td>
+        </tr>
+        <tr>
+            <td>Density:</td>
+            <td><input type="number" id="density" value="1" min="1" max="10"></td>
+        </tr>
+        <tr>
+            <td>Blue Threshold (0-255):</td>
+            <td><input type="number" id="blueBound" value="130" min="0" max="255"></td>
+        </tr>
+    </table>
 
     <script>
         function logToConsole(message) {
@@ -68,28 +84,22 @@
 
                 logToConsole("Image uploaded and drawn to canvas.");
                 
-                // Process the map and identify provinces
-                segmentProvinces(context, img.width, img.height);
+                // Process the map and convert to binary
+                convertToBinaryMap(context, img.width, img.height);
             };
         }
 
-        function segmentProvinces(context, width, height) {
+        function convertToBinaryMap(context, width, height) {
             const imageData = context.getImageData(0, 0, width, height);
             const data = imageData.data;
-            
-            // Basic color definitions
-            const landColors = [{r: 34, g: 139, b: 34}, {r: 139, g: 69, b: 19}];  // example green and brown
-            const oceanColors = [{r: 0, g: 0, b: 255}, {r: 173, g: 216, b: 230}]; // example blue and teal
 
-            function isColorMatch(color1, color2, threshold = 50) {
-                return (
-                    Math.abs(color1.r - color2.r) < threshold &&
-                    Math.abs(color1.g - color2.g) < threshold &&
-                    Math.abs(color1.b - color2.b) < threshold
-                );
-            }
+            // Configuration variables
+            const seed = parseInt(document.getElementById("seed").value, 10);
+            const density = parseInt(document.getElementById("density").value, 10);
+            const blueBound = parseInt(document.getElementById("blueBound").value, 10);
 
-            logToConsole("Processing image data for provinces...");
+            logToConsole(`Seed: ${seed}, Density: ${density}, Blue Bound: ${blueBound}`);
+            logToConsole("Processing image data to convert to binary map...");
 
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
@@ -98,40 +108,25 @@
                     const g = data[index + 1];
                     const b = data[index + 2];
 
-                    let isLand = false;
-                    let isOcean = false;
+                    // Determine if pixel is land or water
+                    let isLand = (b < blueBound) && (r > g && r > b);  // Adjust based on your map colors
 
-                    for (const color of landColors) {
-                        if (isColorMatch({r, g, b}, color)) {
-                            isLand = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!isLand) {
-                        for (const color of oceanColors) {
-                            if (isColorMatch({r, g, b}, color)) {
-                                isOcean = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // Set provinces (here represented by color codes)
                     if (isLand) {
-                        data[index] = 0;    // Set land to a custom color
-                        data[index + 1] = 255;
-                        data[index + 2] = 0;
-                    } else if (isOcean) {
-                        data[index] = 0;    // Set ocean to another custom color
-                        data[index + 1] = 0;
-                        data[index + 2] = 255;
+                        // Land color (e.g., white)
+                        data[index] = 255;    // Red
+                        data[index + 1] = 255; // Green
+                        data[index + 2] = 255; // Blue
+                    } else {
+                        // Water color (e.g., black)
+                        data[index] = 0;    // Red
+                        data[index + 1] = 0; // Green
+                        data[index + 2] = 0; // Blue
                     }
                 }
             }
 
             context.putImageData(imageData, 0, 0);
-            logToConsole("Province segmentation completed.");
+            logToConsole("Binary map conversion completed.");
         }
     </script>
 </body>
