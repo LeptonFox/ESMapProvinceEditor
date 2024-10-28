@@ -32,7 +32,9 @@
     <input type="file" id="mapInput" accept="image/*">
     <button onclick="processMap()">Generate Binary Map</button>
     <button onclick="finalizeBinary()">Finalize Binary and Create Height Map</button>
-    <button onclick="createComplexProvinces()">Create Complex Provinces</button>
+    <button onclick="const nodes = createNodalProvinceMap()">Create Nodal Province Map</button>
+    <button onclick="createGeometricProvinceMap(nodes)">Create Geometric Province Map</button>
+
 
 
     <!-- Console Panel -->
@@ -217,67 +219,92 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
-        function createComplexProvinces() {
+       function createNodalProvinceMap() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
-    const overlayCanvas = document.getElementById('overlay-canvas');
-    const overlayContext = overlayCanvas.getContext('2d');
-
-    const density = parseInt(document.getElementById("meanDensity").value, 10); // Nodes per 50x50 pixels
-    const gridResolution = 50; // Size of grid cells for density scaling
-    const colors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"]; // Four colors for province differentiation
-
+    const nodalCanvas = document.createElement('canvas');
+    nodalCanvas.width = heightMapCanvas.width;
+    nodalCanvas.height = heightMapCanvas.height;
+    const nodalContext = nodalCanvas.getContext('2d');
+    
+    const density = parseInt(document.getElementById("meanDensity").value, 10); // Node density control
+    const noiseMap = generateNoiseMap(heightMapCanvas.width, heightMapCanvas.height, density, 50); // High-detail noise map
     const heightData = heightMapContext.getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
-    const noiseMap = generateNoiseMap(heightMapCanvas.width, heightMapCanvas.height, density, gridResolution);
-    const provinceRegions = {}; // To store province regions by color
+    
+    nodalContext.drawImage(heightMapCanvas, 0, 0); // Start with the height map
 
-    // Loop through each pixel, assigning provinces based on noise map
+    // Overlay nodes based on noise peaks in land areas
+    const nodes = [];
     for (let y = 0; y < heightMapCanvas.height; y++) {
         for (let x = 0; x < heightMapCanvas.width; x++) {
             const index = (y * heightMapCanvas.width + x) * 4;
-
-            if (heightData[index] > 0) { // Land pixel
-                const noiseValue = noiseMap[y][x];
-                const color = colors[Math.floor(noiseValue * colors.length) % colors.length];
-
-                if (!provinceRegions[color]) {
-                    provinceRegions[color] = [];
-                }
-                provinceRegions[color].push([x, y]);
+            const brightness = heightData[index];
+            
+            // Check if it's a land pixel and high in both height and noise (peak-like)
+            if (brightness > 0 && noiseMap[y][x] > 0.6) { // Threshold for peaks in noise
+                nodes.push({ x, y });
+                nodalContext.fillStyle = 'red'; // Mark nodes in red
+                nodalContext.fillRect(x, y, 2, 2); // Draw node point
             }
         }
     }
-
-    // Draw provinces on overlay canvas
-    overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    Object.keys(provinceRegions).forEach((color, index) => {
-        overlayContext.fillStyle = color;
-        overlayContext.beginPath();
-
-        // Draw each point in the province as a continuous path
-        provinceRegions[color].forEach(([x, y], idx) => {
-            if (idx === 0) overlayContext.moveTo(x, y);
-            else overlayContext.lineTo(x, y);
-        });
-
-        overlayContext.closePath();
-        overlayContext.fill();
-    });
-    logToConsole(`Complex provinces created using noise with ${density} nodes per ${gridResolution}x${gridResolution} area.`);
+    
+    document.body.appendChild(nodalCanvas); // Display nodal province map canvas
+    logToConsole(`Nodal province map created with ${nodes.length} nodes.`);
+    return nodes; // For use in creating the geometric provinces
 }
 
-// Helper function to generate noise map (use Perlin or Simplex noise)
-function generateNoiseMap(width, height, density, gridResolution) {
-    const noiseMap = Array.from(Array(height), () => Array(width).fill(0));
+        function createGeometricProvinceMap(nodes) {
+    const heightMapCanvas = document.getElementById('height-map-canvas');
+    const geometricCanvas = document.createElement('canvas');
+    geometricCanvas.width = heightMapCanvas.width;
+    geometricCanvas.height = heightMapCanvas.height;
+    const geometricContext = geometricCanvas.getContext('2d');
+    
+    // Colors for provinces
+    const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
+    const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            // Noise generation
-            const noiseValue = (Math.sin((x + y) * density / gridResolution) + 1) / 2;
-            noiseMap[y][x] = noiseValue;
+    // Use a Voronoi-like approach for associating each pixel to the nearest node
+    nodes.forEach((node, index) => {
+        const provinceColor = provinceColors[index % provinceColors.length];
+        geometricContext.fillStyle = provinceColor;
+        fillProvince(node, provinceColor, heightData, heightMapCanvas.width, heightMapCanvas.height, geometricContext);
+    });
+
+    document.body.appendChild(geometricCanvas); // Display the geometric province map canvas
+    logToConsole("Geometric province map created.");
+}
+
+// Helper function to "fill" provinces based on node proximity (simplified Voronoi approach)
+function fillProvince(node, color, heightData, width, height, context) {
+    const queue = [node];
+    const visited = new Set([`${node.x},${node.y}`]);
+
+    while (queue.length > 0) {
+        const { x, y } = queue.shift();
+        const index = (y * width + x) * 4;
+
+        // If it’s land, color it as part of the province
+        if (heightData[index] > 0) {
+            context.fillStyle = color;
+            context.fillRect(x, y, 1, 1);
+
+            // Check neighbors in four directions
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const nIndex = (ny * width + nx) * 4;
+                    const key = `${nx},${ny}`;
+                    if (heightData[nIndex] > 0 && !visited.has(key)) { // Land and unvisited
+                        queue.push({ x: nx, y: ny });
+                        visited.add(key);
+                    }
+                }
+            });
         }
     }
-    return noiseMap;
 }
 
     </script>
