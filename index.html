@@ -32,7 +32,7 @@
     <input type="file" id="mapInput" accept="image/*">
     <button onclick="processMap()">Generate Binary Map</button>
     <button onclick="finalizeBinary()">Finalize Binary and Create Height Map</button>
-    <button onclick="createGeometry()">Create Geometry</button>
+    <button onclick="createComplexProvinces()">Create Complex Provinces</button>
 
 
     <!-- Console Panel -->
@@ -217,78 +217,67 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
-        function createGeometry() {
+        function createComplexProvinces() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const overlayContext = overlayCanvas.getContext('2d');
+
+    const density = parseInt(document.getElementById("meanDensity").value, 10); // Nodes per 50x50 pixels
+    const gridResolution = 50; // Size of grid cells for density scaling
+    const colors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"]; // Four colors for province differentiation
+
     const heightData = heightMapContext.getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
+    const noiseMap = generateNoiseMap(heightMapCanvas.width, heightMapCanvas.height, density, gridResolution);
+    const provinceRegions = {}; // To store province regions by color
 
-    const meanDensity = parseInt(document.getElementById("meanDensity").value, 10);
-    logToConsole(`Creating geometry with mean density: ${meanDensity}`);
-
-    const polygons = []; // Store resulting provinces' polygons
-
-    // Loop through pixels to define "elevation regions"
-    for (let y = 0; y < heightMapCanvas.height; y += meanDensity) {
-        for (let x = 0; x < heightMapCanvas.width; x += meanDensity) {
+    // Loop through each pixel, assigning provinces based on noise map
+    for (let y = 0; y < heightMapCanvas.height; y++) {
+        for (let x = 0; x < heightMapCanvas.width; x++) {
             const index = (y * heightMapCanvas.width + x) * 4;
-            const brightness = heightData[index]; // Height at (x, y)
 
-            // Determine density based on elevation (higher -> larger provinces)
-            const density = meanDensity + (brightness > 128 ? -2 : 2);
+            if (heightData[index] > 0) { // Land pixel
+                const noiseValue = noiseMap[y][x];
+                const color = colors[Math.floor(noiseValue * colors.length) % colors.length];
 
-            // Only sample within this density
-            const region = [];
-            for (let dy = 0; dy < density; dy++) {
-                for (let dx = 0; dx < density; dx++) {
-                    const nx = x + dx;
-                    const ny = y + dy;
-
-                    if (nx < heightMapCanvas.width && ny < heightMapCanvas.height) {
-                        const nIndex = (ny * heightMapCanvas.width + nx) * 4;
-                        if (heightData[nIndex] > 0) { // Non-water
-                            region.push([nx, ny]);
-                        }
-                    }
+                if (!provinceRegions[color]) {
+                    provinceRegions[color] = [];
                 }
-            }
-
-            // Approximate the region with a polygon using convex hull (or other simplifications)
-            if (region.length > 0) {
-                const simplifiedPolygon = approximatePolygon(region);
-                polygons.push(simplifiedPolygon);
+                provinceRegions[color].push([x, y]);
             }
         }
     }
 
-    drawPolygons(polygons);
-    logToConsole(`Geometry created with ${polygons.length} provinces.`);
-}
-
-function approximatePolygon(points) {
-    // Basic polygon approximation logic, replace with a convex hull or other method as needed
-    // For now, we return the original points as an example
-    return points;
-}
-
-function drawPolygons(polygons) {
-    const overlayCanvas = document.getElementById('overlay-canvas');
-    const overlayContext = overlayCanvas.getContext('2d');
-
+    // Draw provinces on overlay canvas
     overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-    polygons.forEach(polygon => {
+    Object.keys(provinceRegions).forEach((color, index) => {
+        overlayContext.fillStyle = color;
         overlayContext.beginPath();
-        polygon.forEach(([x, y], index) => {
-            if (index === 0) {
-                overlayContext.moveTo(x, y);
-            } else {
-                overlayContext.lineTo(x, y);
-            }
+
+        // Draw each point in the province as a continuous path
+        provinceRegions[color].forEach(([x, y], idx) => {
+            if (idx === 0) overlayContext.moveTo(x, y);
+            else overlayContext.lineTo(x, y);
         });
+
         overlayContext.closePath();
-        overlayContext.strokeStyle = `rgba(0, 128, 0, 0.5)`; // Light green for visualization
-        overlayContext.stroke();
+        overlayContext.fill();
     });
+    logToConsole(`Complex provinces created using noise with ${density} nodes per ${gridResolution}x${gridResolution} area.`);
+}
+
+// Helper function to generate noise map (use Perlin or Simplex noise)
+function generateNoiseMap(width, height, density, gridResolution) {
+    const noiseMap = Array.from(Array(height), () => Array(width).fill(0));
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Noise generation
+            const noiseValue = (Math.sin((x + y) * density / gridResolution) + 1) / 2;
+            noiseMap[y][x] = noiseValue;
+        }
+    }
+    return noiseMap;
 }
 
     </script>
