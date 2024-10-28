@@ -6,7 +6,7 @@
     <title>Binary Province Map Generator</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
-        input[type="file"] { margin: 20px; }
+        input[type="file"], button { margin: 10px; }
         #output-section { display: flex; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
         .canvas-container { margin: 10px; }
         canvas { border: 1px solid #333; max-width: 100%; }
@@ -31,6 +31,7 @@
     <p>Upload a map image to convert it to a binary water-land map.</p>
     <input type="file" id="mapInput" accept="image/*">
     <button onclick="processMap()">Generate Binary Map</button>
+    <button onclick="finalizeBinary()">Finalize Binary and Create Height Map</button>
 
     <!-- Console Panel -->
     <div id="console-panel"></div>
@@ -73,6 +74,10 @@
         <div class="canvas-container">
             <h3>Overlay Map</h3>
             <canvas id="overlay-canvas"></canvas>
+        </div>
+        <div class="canvas-container">
+            <h3>Height Map</h3>
+            <canvas id="height-map-canvas"></canvas>
         </div>
     </div>
 
@@ -171,6 +176,38 @@
             overlayContext.globalAlpha = 0.5;
             overlayContext.drawImage(binaryContext.canvas, 0, 0);
             logToConsole("Binary map and overlay map generated.");
+        }
+
+        function finalizeBinary() {
+            const originalCanvas = document.getElementById('original-canvas');
+            const binaryCanvas = document.getElementById('binary-canvas');
+            const heightMapCanvas = document.getElementById('height-map-canvas');
+            const originalContext = originalCanvas.getContext('2d');
+            const binaryContext = binaryCanvas.getContext('2d');
+            const heightMapContext = heightMapCanvas.getContext('2d');
+
+            heightMapCanvas.width = binaryCanvas.width;
+            heightMapCanvas.height = binaryCanvas.height;
+
+            // Get the binary and original image data
+            const binaryData = binaryContext.getImageData(0, 0, binaryCanvas.width, binaryCanvas.height).data;
+            const originalData = originalContext.getImageData(0, 0, originalCanvas.width, originalCanvas.height).data;
+            const heightMapData = new Uint8ClampedArray(binaryData.length);
+
+            for (let i = 0; i < binaryData.length; i += 4) {
+                const brightness = (originalData[i] + originalData[i + 1] + originalData[i + 2]) / 3;
+                if (binaryData[i] === 255) { // Land
+                    heightMapData[i] = heightMapData[i + 1] = heightMapData[i + 2] = brightness;
+                    heightMapData[i + 3] = 255; // Fully opaque
+                } else { // Water
+                    heightMapData[i] = heightMapData[i + 1] = heightMapData[i + 2] = 0; // Black for water
+                    heightMapData[i + 3] = 255;
+                }
+            }
+
+            const heightMapImageData = new ImageData(heightMapData, binaryCanvas.width, binaryCanvas.height);
+            heightMapContext.putImageData(heightMapImageData, 0, 0);
+            logToConsole("Height map generated based on brightness and masked with binary map.");
         }
     </script>
 </body>
