@@ -32,6 +32,8 @@
     <input type="file" id="mapInput" accept="image/*">
     <button onclick="processMap()">Generate Binary Map</button>
     <button onclick="finalizeBinary()">Finalize Binary and Create Height Map</button>
+    <button onclick="createGeometry()">Create Geometry</button>
+
 
     <!-- Console Panel -->
     <div id="console-panel"></div>
@@ -59,6 +61,11 @@
                 <td>Brightness Bound:</td>
                 <td><input type="number" id="brightnessBound" value="150" min="0" max="255"></td>
             </tr>
+            <tr>
+                <td>Mean Density:</td>
+                <td><input type="number" id="meanDensity" value="10" min="1" step="1"></td>
+            </tr>
+
         </table>
     </div>
 
@@ -209,6 +216,81 @@
             heightMapContext.putImageData(heightMapImageData, 0, 0);
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
+
+        function createGeometry() {
+    const heightMapCanvas = document.getElementById('height-map-canvas');
+    const heightMapContext = heightMapCanvas.getContext('2d');
+    const heightData = heightMapContext.getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
+
+    const meanDensity = parseInt(document.getElementById("meanDensity").value, 10);
+    logToConsole(`Creating geometry with mean density: ${meanDensity}`);
+
+    const polygons = []; // Store resulting provinces' polygons
+
+    // Loop through pixels to define "elevation regions"
+    for (let y = 0; y < heightMapCanvas.height; y += meanDensity) {
+        for (let x = 0; x < heightMapCanvas.width; x += meanDensity) {
+            const index = (y * heightMapCanvas.width + x) * 4;
+            const brightness = heightData[index]; // Height at (x, y)
+
+            // Determine density based on elevation (higher -> larger provinces)
+            const density = meanDensity + (brightness > 128 ? -2 : 2);
+
+            // Only sample within this density
+            const region = [];
+            for (let dy = 0; dy < density; dy++) {
+                for (let dx = 0; dx < density; dx++) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx < heightMapCanvas.width && ny < heightMapCanvas.height) {
+                        const nIndex = (ny * heightMapCanvas.width + nx) * 4;
+                        if (heightData[nIndex] > 0) { // Non-water
+                            region.push([nx, ny]);
+                        }
+                    }
+                }
+            }
+
+            // Approximate the region with a polygon using convex hull (or other simplifications)
+            if (region.length > 0) {
+                const simplifiedPolygon = approximatePolygon(region);
+                polygons.push(simplifiedPolygon);
+            }
+        }
+    }
+
+    drawPolygons(polygons);
+    logToConsole(`Geometry created with ${polygons.length} provinces.`);
+}
+
+function approximatePolygon(points) {
+    // Basic polygon approximation logic, replace with a convex hull or other method as needed
+    // For now, we return the original points as an example
+    return points;
+}
+
+function drawPolygons(polygons) {
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const overlayContext = overlayCanvas.getContext('2d');
+
+    overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+    polygons.forEach(polygon => {
+        overlayContext.beginPath();
+        polygon.forEach(([x, y], index) => {
+            if (index === 0) {
+                overlayContext.moveTo(x, y);
+            } else {
+                overlayContext.lineTo(x, y);
+            }
+        });
+        overlayContext.closePath();
+        overlayContext.strokeStyle = `rgba(0, 128, 0, 0.5)`; // Light green for visualization
+        overlayContext.stroke();
+    });
+}
+
     </script>
 </body>
 </html>
