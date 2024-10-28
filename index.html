@@ -39,24 +39,24 @@
         <h3>Configuration Variables</h3>
         <table style="margin: 0 auto;">
             <tr>
-                <td>Red Threshold:</td>
-                <td><input type="number" id="redThreshold" value="100" min="0" max="255"></td>
-                <td><input type="checkbox" id="useRedThreshold"> Enable</td>
+                <td>Blue Multiple Limit:</td>
+                <td><input type="number" id="blueMultipleLimit" value="2" min="0" step="0.1"></td>
             </tr>
             <tr>
-                <td>Green Threshold:</td>
-                <td><input type="number" id="greenThreshold" value="100" min="0" max="255"></td>
-                <td><input type="checkbox" id="useGreenThreshold"> Enable</td>
+                <td>Blue Differential Limit:</td>
+                <td><input type="number" id="blueDifferentialLimit" value="50" min="0"></td>
             </tr>
             <tr>
-                <td>Blue Threshold:</td>
-                <td><input type="number" id="blueThreshold" value="130" min="0" max="255"></td>
-                <td><input type="checkbox" id="useBlueThreshold"> Enable</td>
+                <td>Green Bound:</td>
+                <td><input type="number" id="greenBound" value="150" min="0" max="255"></td>
             </tr>
             <tr>
-                <td>Brightness Threshold:</td>
-                <td><input type="number" id="brightnessThreshold" value="100" min="0" max="255"></td>
-                <td><input type="checkbox" id="useBrightnessThreshold"> Enable</td>
+                <td>Red Bound:</td>
+                <td><input type="number" id="redBound" value="150" min="0" max="255"></td>
+            </tr>
+            <tr>
+                <td>Brightness Bound:</td>
+                <td><input type="number" id="brightnessBound" value="150" min="0" max="255"></td>
             </tr>
         </table>
     </div>
@@ -119,17 +119,13 @@
             const data = imageData.data;
             const binaryData = new Uint8ClampedArray(data);
 
-            const redThreshold = parseInt(document.getElementById("redThreshold").value, 10);
-            const greenThreshold = parseInt(document.getElementById("greenThreshold").value, 10);
-            const blueThreshold = parseInt(document.getElementById("blueThreshold").value, 10);
-            const brightnessThreshold = parseInt(document.getElementById("brightnessThreshold").value, 10);
+            const blueMultipleLimit = parseFloat(document.getElementById("blueMultipleLimit").value);
+            const blueDifferentialLimit = parseInt(document.getElementById("blueDifferentialLimit").value, 10);
+            const greenBound = parseInt(document.getElementById("greenBound").value, 10);
+            const redBound = parseInt(document.getElementById("redBound").value, 10);
+            const brightnessBound = parseInt(document.getElementById("brightnessBound").value, 10);
 
-            const useRedThreshold = document.getElementById("useRedThreshold").checked;
-            const useGreenThreshold = document.getElementById("useGreenThreshold").checked;
-            const useBlueThreshold = document.getElementById("useBlueThreshold").checked;
-            const useBrightnessThreshold = document.getElementById("useBrightnessThreshold").checked;
-
-            logToConsole(`Processing with thresholds: Red ${redThreshold}, Green ${greenThreshold}, Blue ${blueThreshold}, Brightness ${brightnessThreshold}`);
+            logToConsole(`Processing with limits: Blue Multiple ${blueMultipleLimit}, Blue Differential ${blueDifferentialLimit}, Green Bound ${greenBound}, Red Bound ${redBound}, Brightness Bound ${brightnessBound}`);
             
             // Process pixels to create binary map
             for (let i = 0; i < data.length; i += 4) {
@@ -138,12 +134,20 @@
                 const b = data[i + 2];
                 const brightness = (r + g + b) / 3;
 
-                // Determine if pixel is land based on thresholds
-                let isLand = true;
-                if (useRedThreshold && r < redThreshold) isLand = false;
-                if (useGreenThreshold && g < greenThreshold) isLand = false;
-                if (useBlueThreshold && b > blueThreshold) isLand = false;
-                if (useBrightnessThreshold && brightness < brightnessThreshold) isLand = false;
+                // Determine if pixel is land or water based on the specified conditions
+                let isLand = false;
+                
+                if (b >= blueMultipleLimit * Math.max(r, g)) {
+                    isLand = false;
+                } else if ((b - Math.max(r, g)) > blueDifferentialLimit) {
+                    isLand = false;
+                } else if (g > greenBound) {
+                    isLand = true;
+                } else if (r > redBound) {
+                    isLand = true;
+                } else if (brightness > brightnessBound) {
+                    isLand = true;
+                }
 
                 if (isLand) {
                     // Land color (white)
