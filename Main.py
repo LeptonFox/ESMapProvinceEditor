@@ -1,83 +1,173 @@
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
-import argparse
-from scipy.spatial import Voronoi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Province Map Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        input[type="file"] { margin: 20px; }
+        #output-section { display: flex; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+        .canvas-container { margin: 10px; }
+        canvas { border: 1px solid #333; max-width: 100%; }
+        #console-panel {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            max-width: 600px;
+            margin: 20px auto;
+            text-align: left;
+            font-size: 0.9em;
+            color: #333;
+            height: 150px;
+            overflow-y: auto;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <h1>Binary Province Map Generator</h1>
+    <p>Upload a map image to convert it to a binary water-land map.</p>
+    <input type="file" id="mapInput" accept="image/*">
+    <button onclick="processMap()">Generate Binary Map</button>
 
-def main(input_image_path, output_image_path):
-    # Load the map image
-    image = cv2.imread(input_image_path)
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    <!-- Console Panel -->
+    <div id="console-panel"></div>
 
-    # Step 1: Create masks for land and water based on color ranges
-    # Define color ranges for land (greens, browns) and water (blues, teals, white)
-    land_mask = cv2.inRange(image_rgb, (0, 50, 0), (150, 200, 150))  # Adjust for green and brown land colors
-    water_mask = cv2.inRange(image_rgb, (0, 0, 100), (200, 255, 255))  # Adjust for blue and white water colors
+    <div class="canvas-container">
+        <h3>Configuration Variables</h3>
+        <table style="margin: 0 auto;">
+            <tr>
+                <td>Red Threshold:</td>
+                <td><input type="number" id="redThreshold" value="100" min="0" max="255"></td>
+                <td><input type="checkbox" id="useRedThreshold"> Enable</td>
+            </tr>
+            <tr>
+                <td>Green Threshold:</td>
+                <td><input type="number" id="greenThreshold" value="100" min="0" max="255"></td>
+                <td><input type="checkbox" id="useGreenThreshold"> Enable</td>
+            </tr>
+            <tr>
+                <td>Blue Threshold:</td>
+                <td><input type="number" id="blueThreshold" value="130" min="0" max="255"></td>
+                <td><input type="checkbox" id="useBlueThreshold"> Enable</td>
+            </tr>
+            <tr>
+                <td>Brightness Threshold:</td>
+                <td><input type="number" id="brightnessThreshold" value="100" min="0" max="255"></td>
+                <td><input type="checkbox" id="useBrightnessThreshold"> Enable</td>
+            </tr>
+        </table>
+    </div>
 
-    # Step 2: Remove areas that might be legends or external labels
-    # Assuming legends are in the corners, we mask out the corners
-    h, w, _ = image.shape
-    legend_mask = np.zeros((h, w), dtype=np.uint8)
-    corner_size = int(0.1 * min(h, w))  # Adjust the corner mask size as needed
+    <div id="output-section">
+        <div class="canvas-container">
+            <h3>Original Map</h3>
+            <canvas id="original-canvas"></canvas>
+        </div>
+        <div class="canvas-container">
+            <h3>Binary Map</h3>
+            <canvas id="binary-canvas"></canvas>
+        </div>
+        <div class="canvas-container">
+            <h3>Overlay Map</h3>
+            <canvas id="overlay-canvas"></canvas>
+        </div>
+    </div>
 
-    # Top-left, Top-right, Bottom-left, Bottom-right corners
-    cv2.rectangle(legend_mask, (0, 0), (corner_size, corner_size), 255, -1)
-    cv2.rectangle(legend_mask, (w - corner_size, 0), (w, corner_size), 255, -1)
-    cv2.rectangle(legend_mask, (0, h - corner_size), (corner_size, h), 255, -1)
-    cv2.rectangle(legend_mask, (w - corner_size, h - corner_size), (w, h), 255, -1)
+    <script>
+        function logToConsole(message) {
+            const consolePanel = document.getElementById('console-panel');
+            consolePanel.innerText += message + '\n';
+            consolePanel.scrollTop = consolePanel.scrollHeight;
+        }
 
-    # Combine the land mask and remove legend areas
-    combined_land_mask = cv2.bitwise_and(land_mask, cv2.bitwise_not(legend_mask))
+        function processMap() {
+            const fileInput = document.getElementById('mapInput');
+            if (!fileInput.files.length) {
+                alert("Please select a file.");
+                logToConsole("Error: No file selected.");
+                return;
+            }
 
-    # Step 3: Segment land areas (using combined_land_mask) and find contours for landmasses
-    contours, _ = cv2.findContours(combined_land_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            const file = fileInput.files[0];
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
 
-    # Step 4: Place seed points within each landmass for province centers
-    seed_points = []
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        num_seeds = max(1, area // 50000)  # Adjust based on desired province density
+            img.onload = () => {
+                const originalCanvas = document.getElementById('original-canvas');
+                const binaryCanvas = document.getElementById('binary-canvas');
+                const overlayCanvas = document.getElementById('overlay-canvas');
+                const originalContext = originalCanvas.getContext('2d');
+                const binaryContext = binaryCanvas.getContext('2d');
+                const overlayContext = overlayCanvas.getContext('2d');
 
-        for _ in range(num_seeds):
-            x, y, w, h = cv2.boundingRect(contour)
-            seed_x = np.random.randint(x, x + w)
-            seed_y = np.random.randint(y, y + h)
+                originalCanvas.width = binaryCanvas.width = overlayCanvas.width = img.width;
+                originalCanvas.height = binaryCanvas.height = overlayCanvas.height = img.height;
 
-            # Check if the point is within the landmass contour
-            if cv2.pointPolygonTest(contour, (seed_x, seed_y), False) >= 0:
-                seed_points.append([seed_x, seed_y])
+                // Draw original image
+                originalContext.drawImage(img, 0, 0);
 
-    # Step 5: Create a blank image for province visualization
-    province_map = np.zeros_like(image_rgb)
+                // Create binary map and overlay
+                createBinaryAndOverlayMap(originalContext, binaryContext, overlayContext, img.width, img.height);
+            };
+        }
 
-    # Step 6: Use Voronoi tessellation to divide the land based on seeds
-    seed_points = np.array(seed_points)
-    vor = Voronoi(seed_points)
+        function createBinaryAndOverlayMap(originalContext, binaryContext, overlayContext, width, height) {
+            const imageData = originalContext.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const binaryData = new Uint8ClampedArray(data);
 
-    # Draw Voronoi regions for each seed
-    for region in vor.regions:
-        if not -1 in region and region:
-            poly_points = [vor.vertices[i] for i in region]
-            poly_points = np.array([poly_points], dtype=np.int32)
+            const redThreshold = parseInt(document.getElementById("redThreshold").value, 10);
+            const greenThreshold = parseInt(document.getElementById("greenThreshold").value, 10);
+            const blueThreshold = parseInt(document.getElementById("blueThreshold").value, 10);
+            const brightnessThreshold = parseInt(document.getElementById("brightnessThreshold").value, 10);
 
-            color = tuple(np.random.randint(0, 255, size=3).tolist())
-            cv2.fillPoly(province_map, poly_points, color)
+            const useRedThreshold = document.getElementById("useRedThreshold").checked;
+            const useGreenThreshold = document.getElementById("useGreenThreshold").checked;
+            const useBlueThreshold = document.getElementById("useBlueThreshold").checked;
+            const useBrightnessThreshold = document.getElementById("useBrightnessThreshold").checked;
 
-    # Overlay province centers and labels
-    for idx, (x, y) in enumerate(seed_points):
-        cv2.circle(province_map, (x, y), 3, (255, 255, 255), -1)
-        cv2.putText(province_map, f'Prov {idx+1}', (x + 5, y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 255, 255), 1)
+            logToConsole(`Processing with thresholds: Red ${redThreshold}, Green ${greenThreshold}, Blue ${blueThreshold}, Brightness ${brightnessThreshold}`);
+            
+            // Process pixels to create binary map
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const brightness = (r + g + b) / 3;
 
-    # Save the output image
-    plt.imsave(output_image_path, province_map)
-    print(f"Province map saved to {output_image_path}")
+                // Determine if pixel is land based on thresholds
+                let isLand = true;
+                if (useRedThreshold && r < redThreshold) isLand = false;
+                if (useGreenThreshold && g < greenThreshold) isLand = false;
+                if (useBlueThreshold && b > blueThreshold) isLand = false;
+                if (useBrightnessThreshold && brightness < brightnessThreshold) isLand = false;
 
-if __name__ == "__main__":
-    # Parse input and output file paths from command-line arguments
-    parser = argparse.ArgumentParser(description="Generate provinces from a terraformed moon map.")
-    parser.add_argument('input_image', type=str, help="Path to the input map image")
-    parser.add_argument('output_image', type=str, help="Path to save the output province map")
-    args = parser.parse_args()
+                if (isLand) {
+                    // Land color (white)
+                    binaryData[i] = 255; 
+                    binaryData[i + 1] = 255; 
+                    binaryData[i + 2] = 255;
+                } else {
+                    // Water color (black)
+                    binaryData[i] = 0;
+                    binaryData[i + 1] = 0;
+                    binaryData[i + 2] = 0;
+                }
+            }
 
-    # Run main function with provided paths
-    main(args.input_image, args.output_image)
+            // Display binary image
+            const binaryImageData = new ImageData(binaryData, width, height);
+            binaryContext.putImageData(binaryImageData, 0, 0);
+
+            // Overlay binary on original with 50% opacity
+            overlayContext.drawImage(originalContext.canvas, 0, 0);
+            overlayContext.globalAlpha = 0.5;
+            overlayContext.drawImage(binaryContext.canvas, 0, 0);
+            logToConsole("Binary map and overlay map generated.");
+        }
+    </script>
+</body>
+</html>
