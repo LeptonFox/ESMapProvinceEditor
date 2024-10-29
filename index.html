@@ -230,7 +230,7 @@
        function createNodalProvinceMap() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
-    const nodalCanvas = document.createElement('canvas');
+    const nodalCanvas = document.getElementById('nodal-province-canvas');
     nodalCanvas.width = heightMapCanvas.width;
     nodalCanvas.height = heightMapCanvas.height;
     const nodalContext = nodalCanvas.getContext('2d');
@@ -260,11 +260,12 @@
     document.body.appendChild(nodalCanvas); // Display nodal province map canvas
     logToConsole(`Nodal province map created with ${nodes.length} nodes.`);
     return nodes; // For use in creating the geometric provinces
+    logToConsole("Nodal map and nodes generated.");
 }
 
         function createGeometricProvinceMap(nodes) {
     const heightMapCanvas = document.getElementById('height-map-canvas');
-    const geometricCanvas = document.createElement('canvas');
+    const geometricCanvas = document.getElementById('geometric-province-canvas');
     geometricCanvas.width = heightMapCanvas.width;
     geometricCanvas.height = heightMapCanvas.height;
     const geometricContext = geometricCanvas.getContext('2d');
