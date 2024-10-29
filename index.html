@@ -227,12 +227,10 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
-       function createNodalProvinceMap() {
+      function createNodalProvinceMap() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
     const nodalCanvas = document.getElementById('nodal-province-canvas');
-    nodalCanvas.width = heightMapCanvas.width;
-    nodalCanvas.height = heightMapCanvas.height;
     const nodalContext = nodalCanvas.getContext('2d');
     
     const density = parseInt(document.getElementById("meanDensity").value, 10); // Node density control
@@ -257,10 +255,8 @@
         }
     }
     
-    document.body.appendChild(nodalCanvas); // Display nodal province map canvas
-    logToConsole(`Nodal province map created with ${nodes.length} nodes.`);
-    return nodes; // For use in creating the geometric provinces
-    logToConsole("Nodal map and nodes generated.");
+    console.log(`Nodal province map created with ${nodes.length} nodes.`);
+    return nodes; // Return nodes for use in geometric province generation
 }
 
         function createGeometricProvinceMap(nodes) {
