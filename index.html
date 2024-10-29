@@ -227,6 +227,20 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
+        function generateNoiseMap(width, height, density, scale) {
+    const noiseMap = [];
+    for (let y = 0; y < height; y++) {
+        noiseMap[y] = [];
+        for (let x = 0; x < width; x++) {
+            // Basic random noise generation
+            const randomValue = Math.random() * density;
+            noiseMap[y][x] = randomValue / scale; // Scale the noise
+        }
+    }
+    return noiseMap;
+}
+
+
       function createNodalProvinceMap() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
