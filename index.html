@@ -240,7 +240,8 @@
     return noiseMap;
 }
 
-
+    let nodes = [];
+        
       function createNodalProvinceMap() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
@@ -269,7 +270,7 @@
         }
     }
     
-    console.log(`Nodal province map created with ${nodes.length} nodes.`);
+    logToConsole(`Nodal province map created with ${nodes.length} nodes.`);
     return nodes; // Return nodes for use in geometric province generation
 }
 
