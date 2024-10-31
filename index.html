@@ -279,7 +279,7 @@ function createNodalProvinceMap() {
     nodalContext.drawImage(heightMapCanvas, 0, 0); // Draw the height map as background
 
     const nodes = [];
-    const minDistance = 10; // Minimum distance between nodes to avoid clustering
+    const minDistance = 20 / density; // Minimum distance between nodes to avoid clustering
 
     // Place nodes based on combined height and noise criteria
     for (let y = 0; y < height; y++) {
@@ -289,7 +289,7 @@ function createNodalProvinceMap() {
 
             // Randomize placement with a threshold: allow node placement based on the combined value
             // Higher combined values are more favorable for node placement
-            if (combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
+            if (brightness > 10 && combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
                 // Check if the new node is far enough from existing nodes
                 let isFarEnough = true;
                 for (let i = 0; i < nodes.length; i++) {
@@ -304,7 +304,7 @@ function createNodalProvinceMap() {
                 if (isFarEnough) {
                     nodes.push({ x, y });
                     nodalContext.fillStyle = 'red';
-                    nodalContext.fillRect(x, y, 2, 2); // Draw node as small red dot
+                    nodalContext.fillRect(x + Math.random(-1, 1), y + Math.random(-1, 1), 2, 2); // Draw node as small red dot
                 }
             }
         }
