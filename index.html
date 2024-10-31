@@ -231,15 +231,15 @@
         }
 
 function generateNoiseMap(width, height, density, scale) {
-    noise.seed(Math.random()); // Seed for randomness
+    const noise = new Noise(Math.random()); // Initialize NoiseJS with a random seed
     const noiseMap = [];
 
     for (let y = 0; y < height; y++) {
         noiseMap[y] = [];
         for (let x = 0; x < width; x++) {
-            // Use Simplex noise with scaling to create varied patterns
-            const noiseValue = (noise.simplex2(x / scale, y / scale) + 1) / 2;
-            noiseMap[y][x] = noiseValue;  // Keep value between 0 and 1
+            // Use Perlin noise with scaling to create varied patterns
+            const noiseValue = (noise.perlin2(x / scale, y / scale) + 1) / 2; // Scale to [0, 1]
+            noiseMap[y][x] = noiseValue;  // Store the normalized noise value
         }
     }
     return noiseMap;
