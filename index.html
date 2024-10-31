@@ -288,7 +288,7 @@ function createNodalProvinceMap() {
             const combinedValue = combinedMap[y][x];
             // Randomize placement with a threshold: allow node placement based on the combined value
             // Higher combined values are more favorable for node placement
-            if (if combinedValue > 0 && combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
+            if (combinedValue > 0 && combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
                 // Check if the new node is far enough from existing nodes
                 let isFarEnough = true;
                 for (let i = 0; i < nodes.length; i++) {
