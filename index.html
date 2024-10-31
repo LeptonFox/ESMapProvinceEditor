@@ -229,20 +229,20 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
- function generateNoiseMap(width, height, density, scale) {
-            perlin.seed(); // Re-initialize the Perlin noise for fresh noise generation
-            const noiseMap = [];
+function generateNoiseMap(width, height, density, scale) {
+    perlin.seed(); // Re-initialize the Perlin noise for fresh noise generation
+    const noiseMap = [];
 
-            for (let y = 0; y < height; y++) {
-                noiseMap[y] = [];
-                for (let x = 0; x < width; x++) {
-                    // Use the get method of the Perlin noise object
-                    const noiseValue = (perlin.get(x / scale, y / scale) + 1) / 2; // Scale to [0, 1]
-                    noiseMap[y][x] = noiseValue;  // Keep value between 0 and 1
-                }
-            }
-            return noiseMap;
+    for (let y = 0; y < height; y++) {
+        noiseMap[y] = [];
+        for (let x = 0; x < width; x++) {
+            // Use the get method of the Perlin noise object and invert the value
+            const noiseValue = (1 - (perlin.get(x / scale, y / scale) + 1) / 2); // Invert to make peaks dark
+            noiseMap[y][x] = noiseValue;  // Keep value between 0 (dark) and 1 (light)
         }
+    }
+    return noiseMap;
+}
 
 
     let nodes = [];
