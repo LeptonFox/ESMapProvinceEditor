@@ -286,7 +286,7 @@ function createNodalProvinceMap() {
         for (let x = 0; x < width; x++) {
             // Use the combined value to determine placement
             const combinedValue = combinedMap[y][x];
-
+            const brightness = heightData[index];
             // Randomize placement with a threshold: allow node placement based on the combined value
             // Higher combined values are more favorable for node placement
             if (brightness > 10 && combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
