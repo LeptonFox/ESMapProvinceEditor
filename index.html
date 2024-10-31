@@ -230,13 +230,15 @@
         }
 
 function generateNoiseMap(width, height, density, scale) {
+    noise.seed(Math.random()); // Seed for randomness
     const noiseMap = [];
+
     for (let y = 0; y < height; y++) {
         noiseMap[y] = [];
         for (let x = 0; x < width; x++) {
-            // Generate detailed noise with sinusoidal variance
-            const noiseValue = (Math.sin((x + y * width) * 0.05 * density) + 1) / 2;  // Detailed, variable noise
-            noiseMap[y][x] = noiseValue < 0.4 ? noiseValue : 1;  // Peak regions below threshold
+            // Use Simplex noise with scaling to create varied patterns
+            const noiseValue = (noise.simplex2(x / scale, y / scale) + 1) / 2;
+            noiseMap[y][x] = noiseValue;  // Keep value between 0 and 1
         }
     }
     return noiseMap;
@@ -252,39 +254,40 @@ function createNodalProvinceMap() {
     const heightMapContext = heightMapCanvas.getContext('2d');
     const nodalCanvas = document.getElementById('nodal-province-canvas');
     const nodalContext = nodalCanvas.getContext('2d');
-    
+
     const width = heightMapCanvas.width;
     const height = heightMapCanvas.height;
-    const density = parseInt(document.getElementById("meanDensity").value, 10);  // Density value from input
+    const density = parseInt(document.getElementById("meanDensity").value, 10);
     const heightData = heightMapContext.getImageData(0, 0, width, height).data;
-
-    // Generate high-detail noise map overlayed on height map for node generation
-    const noiseMap = generateNoiseMap(width, height, density, 50);  // Updated for full coverage
+    const noiseMap = generateNoiseMap(width, height, density, 100); // Adjust scale for noise detail
 
     nodalCanvas.width = width;
     nodalCanvas.height = height;
     nodalContext.clearRect(0, 0, width, height);
-    nodalContext.drawImage(heightMapCanvas, 0, 0); // Draw height map as background on nodal canvas
+    nodalContext.drawImage(heightMapCanvas, 0, 0); // Draw the height map as background
 
     const nodes = [];
+
+    // Place nodes based on combined noise and height criteria
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const index = (y * width + x) * 4;
-            const brightness = heightData[index];  // Get brightness of the height map
-            const noiseValue = noiseMap[y][x]; // Get noise map value
+            const brightness = heightData[index]; // Brightness for height check
+            const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
 
-            // Place nodes on dark peaks where noise and height conditions are met
-            if (brightness > 0 && noiseValue < 0.4) {  // Threshold check for land and peak
+            // Condition to place nodes: high brightness and certain noise threshold
+            if (brightness > 128 && noiseValue < 0.5) { // Thresholds: height > mid and noise < 0.5
                 nodes.push({ x, y });
                 nodalContext.fillStyle = 'red';
-                nodalContext.fillRect(x, y, 2, 2);  // Draw each node as red dot
+                nodalContext.fillRect(x, y, 2, 2); // Draw node as small red dot
             }
         }
     }
 
-    console.log(`Nodal province map created with ${nodes.length} nodes across full map.`);
-    return nodes;  // Pass nodes to next step for province creation
+    console.log(`Nodal province map created with ${nodes.length} nodes distributed over full map.`);
+    return nodes; // Pass nodes to the next stage for polygon generation
 }
+
 
 
 
