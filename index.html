@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Binary Province Map Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noisejs/2.0.0/perlin.js"></script>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
         input[type="file"], button { margin: 10px; }
@@ -97,7 +98,7 @@
             <canvas id="geometric-province-canvas"></canvas>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noisejs/2.0.0/perlin.js"></script>
+
     <script>
         function logToConsole(message) {
             const consolePanel = document.getElementById('console-panel');
