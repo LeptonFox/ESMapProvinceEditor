@@ -121,9 +121,11 @@
                 const originalCanvas = document.getElementById('original-canvas');
                 const binaryCanvas = document.getElementById('binary-canvas');
                 const overlayCanvas = document.getElementById('overlay-canvas');
+                const heightCanvas = document.getElementById('height-map-canvas');
                 const originalContext = originalCanvas.getContext('2d');
                 const binaryContext = binaryCanvas.getContext('2d');
                 const overlayContext = overlayCanvas.getContext('2d');
+                const heightContext = heightCanvas.getContext('2d');
 
                 originalCanvas.width = binaryCanvas.width = overlayCanvas.width = img.width;
                 originalCanvas.height = binaryCanvas.height = overlayCanvas.height = img.height;
@@ -227,18 +229,20 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
-        function generateNoiseMap(width, height, density, scale) {
+function generateNoiseMap(width, height, density, scale) {
     const noiseMap = [];
     for (let y = 0; y < height; y++) {
         noiseMap[y] = [];
         for (let x = 0; x < width; x++) {
-            // Basic random noise generation
-            const randomValue = Math.random() * density;
-            noiseMap[y][x] = randomValue / scale; // Scale the noise
+            // Generate detailed noise with sinusoidal variance
+            const noiseValue = (Math.sin((x + y * width) * 0.05 * density) + 1) / 2;  // Detailed, variable noise
+            noiseMap[y][x] = noiseValue < 0.4 ? noiseValue : 1;  // Peak regions below threshold
         }
     }
     return noiseMap;
 }
+
+
 
     let nodes = [];
         
@@ -249,34 +253,40 @@ function createNodalProvinceMap() {
     const nodalCanvas = document.getElementById('nodal-province-canvas');
     const nodalContext = nodalCanvas.getContext('2d');
     
-    const density = parseInt(document.getElementById("meanDensity").value, 10); // Control for node density
     const width = heightMapCanvas.width;
     const height = heightMapCanvas.height;
+    const density = parseInt(document.getElementById("meanDensity").value, 10);  // Density value from input
     const heightData = heightMapContext.getImageData(0, 0, width, height).data;
-    const nodes = [];
-    
-    // Clear the nodal canvas and overlay nodes on full land map
+
+    // Generate high-detail noise map overlayed on height map for node generation
+    const noiseMap = generateNoiseMap(width, height, density, 50);  // Updated for full coverage
+
+    nodalCanvas.width = width;
+    nodalCanvas.height = height;
     nodalContext.clearRect(0, 0, width, height);
-    nodalContext.drawImage(heightMapCanvas, 0, 0); // Display the height map on nodal canvas
+    nodalContext.drawImage(heightMapCanvas, 0, 0); // Draw height map as background on nodal canvas
 
-    // Generate nodes based on land area and noise
-    for (let y = 0; y < height; y += Math.max(1, 50 / density)) {  // Adjust step for density
-        for (let x = 0; x < width; x += Math.max(1, 50 / density)) {
+    const nodes = [];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
             const index = (y * width + x) * 4;
-            const brightness = heightData[index];
+            const brightness = heightData[index];  // Get brightness of the height map
+            const noiseValue = noiseMap[y][x]; // Get noise map value
 
-            // Place node if it's on land (non-water pixel)
-            if (brightness > 0) {
+            // Place nodes on dark peaks where noise and height conditions are met
+            if (brightness > 0 && noiseValue < 0.4) {  // Threshold check for land and peak
                 nodes.push({ x, y });
                 nodalContext.fillStyle = 'red';
-                nodalContext.fillRect(x, y, 2, 2); // Mark node
+                nodalContext.fillRect(x, y, 2, 2);  // Draw each node as red dot
             }
         }
     }
 
-    console.log(`Nodal province map created with ${nodes.length} nodes.`);
-    return nodes; // Return node array for next step
+    console.log(`Nodal province map created with ${nodes.length} nodes across full map.`);
+    return nodes;  // Pass nodes to next step for province creation
 }
+
+
 
 // Function to create geometric provinces using Voronoi-like diagram
 function createGeometricProvinceMap(nodes) {
