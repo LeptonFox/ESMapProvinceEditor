@@ -25,8 +25,7 @@
             white-space: pre-line;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/noisejs@2.0.0/perlin.js"></script>
-</head>
+   <script src="perlin.js"></script></head>
 <body>
     <h1>Binary Province Map Generator</h1>
     <p>Upload a map image to convert it to a binary water-land map.</p>
@@ -230,21 +229,20 @@
             logToConsole("Height map generated based on brightness and masked with binary map.");
         }
 
-function generateNoiseMap(width, height, density, scale) {
-    const noise = new Noise(Math.random()); // Initialize NoiseJS with a random seed
-    const noiseMap = [];
+ function generateNoiseMap(width, height, density, scale) {
+            perlin.seed(); // Re-initialize the Perlin noise for fresh noise generation
+            const noiseMap = [];
 
-    for (let y = 0; y < height; y++) {
-        noiseMap[y] = [];
-        for (let x = 0; x < width; x++) {
-            // Use Perlin noise with scaling to create varied patterns
-            const noiseValue = (noise.perlin2(x / scale, y / scale) + 1) / 2; // Scale to [0, 1]
-            noiseMap[y][x] = noiseValue;  // Store the normalized noise value
+            for (let y = 0; y < height; y++) {
+                noiseMap[y] = [];
+                for (let x = 0; x < width; x++) {
+                    // Use the get method of the Perlin noise object
+                    const noiseValue = (perlin.get(x / scale, y / scale) + 1) / 2; // Scale to [0, 1]
+                    noiseMap[y][x] = noiseValue;  // Keep value between 0 and 1
+                }
+            }
+            return noiseMap;
         }
-    }
-    return noiseMap;
-}
-
 
 
     let nodes = [];
