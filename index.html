@@ -275,7 +275,7 @@ function createNodalProvinceMap() {
             const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
 
             // Condition to place nodes: high brightness and certain noise threshold
-            if (brightness > 128 && noiseValue < 0.5) { // Thresholds: height > mid and noise < 0.5
+            if (brightness < 148 && noiseValue < 0.6) { // Thresholds: height > mid and noise < 0.5
                 nodes.push({ x, y });
                 nodalContext.fillStyle = 'red';
                 nodalContext.fillRect(x, y, 2, 2); // Draw node as small red dot
