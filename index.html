@@ -258,7 +258,7 @@ function createNodalProvinceMap() {
     const height = heightMapCanvas.height;
     const density = parseInt(document.getElementById("meanDensity").value, 10);
     const heightData = heightMapContext.getImageData(0, 0, width, height).data;
-    const noiseMap = generateNoiseMap(width, height, density, 100); // Adjust scale for noise detail
+    const noiseMap = generateNoiseMap(width, height, density, 50); // Adjust scale for noise detail
 
     nodalCanvas.width = width;
     nodalCanvas.height = height;
@@ -275,7 +275,7 @@ function createNodalProvinceMap() {
             const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
 
             // Condition to place nodes: high brightness and certain noise threshold
-            if (brightness < 148 && noiseValue < 0.6) { // Thresholds: height > mid and noise < 0.5
+            if (brightness < 148 && brightness > 5 && noiseValue > 0.6) { // Thresholds: height > mid and noise < 0.5
                 nodes.push({ x, y });
                 nodalContext.fillStyle = 'red';
                 nodalContext.fillRect(x, y, 2, 2); // Draw node as small red dot
