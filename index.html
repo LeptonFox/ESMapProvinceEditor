@@ -253,11 +253,25 @@ function createNodalProvinceMap() {
     const nodalCanvas = document.getElementById('nodal-province-canvas');
     const nodalContext = nodalCanvas.getContext('2d');
 
-    const width = heightMapCanvas.width;
+       const width = heightMapCanvas.width;
     const height = heightMapCanvas.height;
     const density = parseInt(document.getElementById("meanDensity").value, 10);
     const heightData = heightMapContext.getImageData(0, 0, width, height).data;
     const noiseMap = generateNoiseMap(width, height, density, 50); // Adjust scale for noise detail
+
+    // Create a combined map of height and noise
+    const combinedMap = [];
+    for (let y = 0; y < height; y++) {
+        combinedMap[y] = [];
+        for (let x = 0; x < width; x++) {
+            const index = (y * width + x) * 4;
+            const brightness = heightData[index]; // Brightness for height check
+            const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
+
+            // Combine height and noise: lower heights and higher noise contribute to a higher score
+            combinedMap[y][x] = (brightness / 255) * (1 - noiseValue); // Scale brightness and invert noise
+        }
+    }
 
     nodalCanvas.width = width;
     nodalCanvas.height = height;
@@ -267,15 +281,15 @@ function createNodalProvinceMap() {
     const nodes = [];
     const minDistance = 10; // Minimum distance between nodes to avoid clustering
 
-    // Place nodes based on combined noise and height criteria
+    // Place nodes based on combined height and noise criteria
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            const index = (y * width + x) * 4;
-            const brightness = heightData[index]; // Brightness for height check
-            const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
+            // Use the combined value to determine placement
+            const combinedValue = combinedMap[y][x];
 
-            // Condition to place nodes: lower brightness and certain noise threshold
-            if (brightness < 148 && brightness > 5 && noiseValue > 0.6) { // Focus on lower altitude areas
+            // Randomize placement with a threshold: allow node placement based on the combined value
+            // Higher combined values are more favorable for node placement
+            if (combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
                 // Check if the new node is far enough from existing nodes
                 let isFarEnough = true;
                 for (let i = 0; i < nodes.length; i++) {
@@ -295,7 +309,6 @@ function createNodalProvinceMap() {
             }
         }
     }
-
     console.log(`Nodal province map created with ${nodes.length} nodes distributed over full map.`);
     return nodes; // Pass nodes to the next stage for polygon generation
 }
