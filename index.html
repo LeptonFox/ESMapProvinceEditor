@@ -67,7 +67,6 @@
                 <td>Mean Density:</td>
                 <td><input type="number" id="meanDensity" value="10" min="1" step="1"></td>
             </tr>
-
         </table>
     </div>
 
@@ -266,6 +265,7 @@ function createNodalProvinceMap() {
     nodalContext.drawImage(heightMapCanvas, 0, 0); // Draw the height map as background
 
     const nodes = [];
+    const minDistance = 10; // Minimum distance between nodes to avoid clustering
 
     // Place nodes based on combined noise and height criteria
     for (let y = 0; y < height; y++) {
@@ -274,11 +274,24 @@ function createNodalProvinceMap() {
             const brightness = heightData[index]; // Brightness for height check
             const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
 
-            // Condition to place nodes: high brightness and certain noise threshold
-            if (brightness < 148 && brightness > 5 && noiseValue > 0.6) { // Thresholds: height > mid and noise < 0.5
-                nodes.push({ x, y });
-                nodalContext.fillStyle = 'red';
-                nodalContext.fillRect(x, y, 2, 2); // Draw node as small red dot
+            // Condition to place nodes: lower brightness and certain noise threshold
+            if (brightness < 148 && brightness > 5 && noiseValue > 0.6) { // Focus on lower altitude areas
+                // Check if the new node is far enough from existing nodes
+                let isFarEnough = true;
+                for (let i = 0; i < nodes.length; i++) {
+                    const dist = Math.sqrt((nodes[i].x - x) ** 2 + (nodes[i].y - y) ** 2);
+                    if (dist < minDistance) {
+                        isFarEnough = false;
+                        break;
+                    }
+                }
+
+                // If the node is far enough from existing nodes, add it
+                if (isFarEnough) {
+                    nodes.push({ x, y });
+                    nodalContext.fillStyle = 'red';
+                    nodalContext.fillRect(x, y, 2, 2); // Draw node as small red dot
+                }
             }
         }
     }
@@ -286,6 +299,7 @@ function createNodalProvinceMap() {
     console.log(`Nodal province map created with ${nodes.length} nodes distributed over full map.`);
     return nodes; // Pass nodes to the next stage for polygon generation
 }
+
 
 
 
