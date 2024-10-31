@@ -242,61 +242,65 @@
 
     let nodes = [];
         
-      function createNodalProvinceMap() {
+     // Function to create nodes across the entire land area
+function createNodalProvinceMap() {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const heightMapContext = heightMapCanvas.getContext('2d');
     const nodalCanvas = document.getElementById('nodal-province-canvas');
     const nodalContext = nodalCanvas.getContext('2d');
     
-    const density = parseInt(document.getElementById("meanDensity").value, 10); // Node density control
-    const noiseMap = generateNoiseMap(heightMapCanvas.width, heightMapCanvas.height, density, 50); // High-detail noise map
-    const heightData = heightMapContext.getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
-    
-    nodalContext.drawImage(heightMapCanvas, 0, 0); // Start with the height map
-
-    // Overlay nodes based on noise peaks in land areas
+    const density = parseInt(document.getElementById("meanDensity").value, 10); // Control for node density
+    const width = heightMapCanvas.width;
+    const height = heightMapCanvas.height;
+    const heightData = heightMapContext.getImageData(0, 0, width, height).data;
     const nodes = [];
-    for (let y = 0; y < heightMapCanvas.height; y++) {
-        for (let x = 0; x < heightMapCanvas.width; x++) {
-            const index = (y * heightMapCanvas.width + x) * 4;
+    
+    // Clear the nodal canvas and overlay nodes on full land map
+    nodalContext.clearRect(0, 0, width, height);
+    nodalContext.drawImage(heightMapCanvas, 0, 0); // Display the height map on nodal canvas
+
+    // Generate nodes based on land area and noise
+    for (let y = 0; y < height; y += Math.max(1, 50 / density)) {  // Adjust step for density
+        for (let x = 0; x < width; x += Math.max(1, 50 / density)) {
+            const index = (y * width + x) * 4;
             const brightness = heightData[index];
-            
-            // Check if it's a land pixel and high in both height and noise (peak-like)
-            if (brightness > 0 && noiseMap[y][x] > 0.6) { // Threshold for peaks in noise
+
+            // Place node if it's on land (non-water pixel)
+            if (brightness > 0) {
                 nodes.push({ x, y });
-                nodalContext.fillStyle = 'red'; // Mark nodes in red
-                nodalContext.fillRect(x, y, 2, 2); // Draw node point
+                nodalContext.fillStyle = 'red';
+                nodalContext.fillRect(x, y, 2, 2); // Mark node
             }
         }
     }
-    
-    logToConsole(`Nodal province map created with ${nodes.length} nodes.`);
-    return nodes; // Return nodes for use in geometric province generation
+
+    console.log(`Nodal province map created with ${nodes.length} nodes.`);
+    return nodes; // Return node array for next step
 }
 
-        function createGeometricProvinceMap(nodes) {
+// Function to create geometric provinces using Voronoi-like diagram
+function createGeometricProvinceMap(nodes) {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const geometricCanvas = document.getElementById('geometric-province-canvas');
-    geometricCanvas.width = heightMapCanvas.width;
-    geometricCanvas.height = heightMapCanvas.height;
     const geometricContext = geometricCanvas.getContext('2d');
     
-    // Colors for provinces
     const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
     const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
 
-    // Use a Voronoi-like approach for associating each pixel to the nearest node
+    // Clear and prepare the geometric canvas
+    geometricContext.clearRect(0, 0, geometricCanvas.width, geometricCanvas.height);
+
+    // Iterate over each node and create a province based on Voronoi-like fill
     nodes.forEach((node, index) => {
         const provinceColor = provinceColors[index % provinceColors.length];
         geometricContext.fillStyle = provinceColor;
         fillProvince(node, provinceColor, heightData, heightMapCanvas.width, heightMapCanvas.height, geometricContext);
     });
 
-    document.body.appendChild(geometricCanvas); // Display the geometric province map canvas
-    logToConsole("Geometric province map created.");
+    console.log("Geometric province map created.");
 }
 
-// Helper function to "fill" provinces based on node proximity (simplified Voronoi approach)
+// Helper function for filling provinces from each node
 function fillProvince(node, color, heightData, width, height, context) {
     const queue = [node];
     const visited = new Set([`${node.x},${node.y}`]);
@@ -305,19 +309,19 @@ function fillProvince(node, color, heightData, width, height, context) {
         const { x, y } = queue.shift();
         const index = (y * width + x) * 4;
 
-        // If it’s land, color it as part of the province
+        // Check if it’s land and color it
         if (heightData[index] > 0) {
             context.fillStyle = color;
             context.fillRect(x, y, 1, 1);
 
-            // Check neighbors in four directions
+            // Check neighbors for filling
             [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                     const nIndex = (ny * width + nx) * 4;
                     const key = `${nx},${ny}`;
-                    if (heightData[nIndex] > 0 && !visited.has(key)) { // Land and unvisited
+                    if (heightData[nIndex] > 0 && !visited.has(key)) { // Only add unvisited land
                         queue.push({ x: nx, y: ny });
                         visited.add(key);
                     }
