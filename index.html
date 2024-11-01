@@ -332,58 +332,63 @@ for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) {
 
 
 
-// Function to create geometric provinces using Voronoi-like diagram
 function createGeometricProvinceMap(nodes) {
     const heightMapCanvas = document.getElementById('height-map-canvas');
     const geometricCanvas = document.getElementById('geometric-province-canvas');
     const geometricContext = geometricCanvas.getContext('2d');
     
     const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
-    const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, heightMapCanvas.width, heightMapCanvas.height).data;
+    const width = heightMapCanvas.width;
+    const height = heightMapCanvas.height;
+    const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, width, height).data;
 
-    // Clear and prepare the geometric canvas
-    geometricContext.clearRect(0, 0, geometricCanvas.width, geometricCanvas.height);
+    geometricContext.clearRect(0, 0, width, height);
 
-    // Iterate over each node and create a province based on Voronoi-like fill
-    nodes.forEach((node, index) => {
-        const provinceColor = provinceColors[index % provinceColors.length];
-        geometricContext.fillStyle = provinceColor;
-        fillProvince(node, provinceColor, heightData, heightMapCanvas.width, heightMapCanvas.height, geometricContext);
+    // Filter nodes to keep only those on land
+    const landNodes = nodes.filter(node => {
+        const index = (node.y * width + node.x) * 4;
+        return heightData[index] > 30; // Brightness threshold for land
     });
 
-    console.log("Geometric province map created.");
+    // Generate Voronoi diagram using land nodes
+    const voronoi = new Voronoi();
+    const bbox = { xl: 0, xr: width, yt: 0, yb: height };
+    const voronoiDiagram = voronoi.compute(landNodes, bbox);
+
+    // Draw each province cell
+    voronoiDiagram.cells.forEach((cell, index) => {
+        const provinceColor = provinceColors[index % provinceColors.length];
+        geometricContext.fillStyle = provinceColor;
+
+        const region = cell.halfedges.map(edge => ({
+            x: edge.getStartpoint().x,
+            y: edge.getStartpoint().y
+        }));
+
+        // Simplify the region's edges and draw
+        const simplifiedRegion = simplifyPolygon(region, 2); // Adjust tolerance as needed
+        drawPolygon(simplifiedRegion, geometricContext);
+    });
+
+    console.log("Geometric province map created with Voronoi-based land provinces.");
 }
 
-// Helper function for filling provinces from each node
-function fillProvince(node, color, heightData, width, height, context) {
-    const queue = [node];
-    const visited = new Set([`${node.x},${node.y}`]);
-
-    while (queue.length > 0) {
-        const { x, y } = queue.shift();
-        const index = (y * width + x) * 4;
-
-        // Check if it’s land and color it
-        if (heightData[index] > 0) {
-            context.fillStyle = color;
-            context.fillRect(x, y, 1, 1);
-
-            // Check neighbors for filling
-            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
-                const nx = x + dx;
-                const ny = y + dy;
-                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                    const nIndex = (ny * width + nx) * 4;
-                    const key = `${nx},${ny}`;
-                    if (heightData[nIndex] > 0 && !visited.has(key)) { // Only add unvisited land
-                        queue.push({ x: nx, y: ny });
-                        visited.add(key);
-                    }
-                }
-            });
-        }
-    }
+// Helper function to draw a simplified polygon region
+function drawPolygon(points, context) {
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach(point => context.lineTo(point.x, point.y));
+    context.closePath();
+    context.fill();
 }
+
+// Polygon simplification function using Ramer-Douglas-Peucker (RDP) simplification algorithm
+function simplifyPolygon(points, tolerance) {
+    // Implement or use an existing RDP simplification algorithm to reduce polygon points
+    // Example: using a library or custom implementation of RDP
+    return points; // Placeholder: replace with actual RDP simplification
+}
+
     </script>
 </body>
 </html>
