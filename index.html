@@ -253,63 +253,67 @@ function createNodalProvinceMap() {
     const nodalCanvas = document.getElementById('nodal-province-canvas');
     const nodalContext = nodalCanvas.getContext('2d');
 
-       const width = heightMapCanvas.width;
+    const width = heightMapCanvas.width;
     const height = heightMapCanvas.height;
     const density = parseInt(document.getElementById("meanDensity").value, 10);
     const heightData = heightMapContext.getImageData(0, 0, width, height).data;
-    const noiseMap = generateNoiseMap(width, height, density, 50); // Adjust scale for noise detail
+    const noiseMap = generateNoiseMap(width, height, density, 50); // Adjust scale as needed
 
-    // Create a combined map of height and noise
+    // Define a combined map based on height and noise
     const combinedMap = [];
     for (let y = 0; y < height; y++) {
         combinedMap[y] = [];
         for (let x = 0; x < width; x++) {
             const index = (y * width + x) * 4;
-            const brightness = heightData[index]; // Brightness for height check
-            const noiseValue = noiseMap[y][x];    // Noise value at (x, y)
+            const brightness = heightData[index]; // Brightness for height
+            const noiseValue = noiseMap[y][x]; // Noise value at (x, y)
 
-            // Combine height and noise: lower heights and higher noise contribute to a higher score
-            combinedMap[y][x] = (brightness / 255) * (1 - noiseValue); // Scale brightness and invert noise
+            // Combine height and noise; high brightness and low noise values are less favorable for nodes
+            combinedMap[y][x] = (1 - noiseValue) * (1 - brightness / 255); // Scale both height and noise
         }
     }
 
     nodalCanvas.width = width;
     nodalCanvas.height = height;
     nodalContext.clearRect(0, 0, width, height);
-    nodalContext.drawImage(heightMapCanvas, 0, 0); // Draw the height map as background
+    nodalContext.drawImage(heightMapCanvas, 0, 0); // Background for height map reference
 
     const nodes = [];
-    const minDistance = 20 / density; // Minimum distance between nodes to avoid clustering
+    const minDistance = Math.max(10, 30 / density); // Minimum distance between nodes
 
-    // Place nodes based on combined height and noise criteria
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            // Use the combined value to determine placement
+    // Randomized node placement across the land area
+    for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) { // Random vertical intervals for less regular pattern
+        for (let x = 0; x < width; x += Math.floor(Math.random() * 10 + 5)) { // Random horizontal intervals
+
             const combinedValue = combinedMap[y][x];
-            // Randomize placement with a threshold: allow node placement based on the combined value
-            // Higher combined values are more favorable for node placement
-            if (combinedValue > 0 && combinedValue < 0.4 && Math.random() < 0.5) { // Adjust the threshold and randomness factor as needed
-                // Check if the new node is far enough from existing nodes
+            const placementChance = Math.random(); // Random chance for each position
+
+            // Favor node placement if combined value is within bounds and placementChance is met
+            if (combinedValue > 0.2 && combinedValue < 0.7 && placementChance < 0.3) { 
                 let isFarEnough = true;
+                
+                // Check minimum distance from other nodes
                 for (let i = 0; i < nodes.length; i++) {
-                    const dist = Math.sqrt((nodes[i].x - x) ** 2 + (nodes[i].y - y) ** 2);
-                    if (dist < minDistance) {
+                    const dx = nodes[i].x - x;
+                    const dy = nodes[i].y - y;
+                    if (dx * dx + dy * dy < minDistance * minDistance) {
                         isFarEnough = false;
                         break;
                     }
                 }
 
-                // If the node is far enough from existing nodes, add it
+                // Add node if it passes distance check
                 if (isFarEnough) {
                     nodes.push({ x, y });
                     nodalContext.fillStyle = 'red';
-                    nodalContext.fillRect(x + Math.random(-1, 1), y + Math.random(-1, 1), 2, 2); // Draw node as small red dot
+                    nodalContext.fillRect(x, y, 2, 2); // Draw node as a small red dot
                 }
             }
         }
     }
-    console.log(`Nodal province map created with ${nodes.length} nodes distributed over full map.`);
-    return nodes; // Pass nodes to the next stage for polygon generation
+
+    console.log(`Nodal province map created with ${nodes.length} nodes over the full map.`);
+    return nodes; // Nodes for province generation
 }
 
 
