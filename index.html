@@ -346,27 +346,20 @@ function createGeometricProvinceMap(nodes) {
     const width = heightMapCanvas.width;
     const height = heightMapCanvas.height;
     const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, width, height).data;
-
     const bbox = { xl: 0, xr: width, yt: 0, yb: height };
-
-    // Filter nodes to ensure they are within bounds
-    nodes = nodes.filter(node => node.x > 0 && node.x < width && node.y > 0 && node.y < height);
-    logToConsole(`Filtered nodes:`, nodes);
 
     const voronoi = new Voronoi();
     const diagram = voronoi.compute(nodes, bbox);
-    logToConsole("Voronoi diagram:", diagram);
+    console.log("Voronoi diagram computed.");
 
-    // Color setup
     const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
     const boundaryColor = "#000000";
 
-    // Prepare canvas
     provincialCanvas.width = width;
     provincialCanvas.height = height;
     provincialContext.clearRect(0, 0, width, height);
 
-    // Process each cell to draw provinces
+    // Iterate over each cell in the Voronoi diagram
     diagram.cells.forEach((cell, index) => {
         const colorHex = provinceColors[index % provinceColors.length];
         provincialContext.fillStyle = colorHex;
@@ -378,25 +371,41 @@ function createGeometricProvinceMap(nodes) {
 
         if (halfedges.length > 0) {
             const start = halfedges[0].getStartpoint();
-            path.moveTo(start.x, start.y);
 
-            halfedges.forEach(edge => {
-                const end = edge.getEndpoint();
-                path.lineTo(end.x, end.y);
-            });
-            path.closePath();
+            // Check if start point is land
+            if (isLand(start, heightData, width)) {
+                path.moveTo(start.x, start.y);
 
-            // Fill and stroke the path
-            provincialContext.fill(path);
-            provincialContext.stroke(path);
+                halfedges.forEach(edge => {
+                    const end = edge.getEndpoint();
 
-            logToConsole(`Province ${index} filled with color ${colorHex}.`);
+                    // Only line to land points
+                    if (isLand(end, heightData, width)) {
+                        path.lineTo(end.x, end.y);
+                    }
+                });
+                path.closePath();
+
+                // Fill and stroke the path to show province boundaries
+                provincialContext.fill(path);
+                provincialContext.stroke(path);
+
+                console.log(`Province ${index} filled with color ${colorHex}.`);
+            }
         } else {
-            logToConsole(`Cell ${index} has no halfedges.`);
+            console.log(`Cell ${index} has no halfedges.`);
         }
     });
 
-    logToConsole("Geometric province map with boundaries created.");
+    console.log("Geometric province map with boundaries created.");
+}
+
+// Helper function to determine if a point is on land
+function isLand(point, heightData, width) {
+    const { x, y } = point;
+    const index = (Math.floor(y) * width + Math.floor(x)) * 4;
+    const brightness = heightData[index];
+    return brightness > 0; // Assumes land has non-zero brightness
 }
 
 
