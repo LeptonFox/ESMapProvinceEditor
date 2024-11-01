@@ -123,10 +123,14 @@
                 const binaryCanvas = document.getElementById('binary-canvas');
                 const overlayCanvas = document.getElementById('overlay-canvas');
                 const heightCanvas = document.getElementById('height-map-canvas');
+                const nodalCanvas = document.getElementById('nodal-province-canvas')
+                const provincialCanvas = document.getElementById('geometric-province-canvas')
                 const originalContext = originalCanvas.getContext('2d');
                 const binaryContext = binaryCanvas.getContext('2d');
                 const overlayContext = overlayCanvas.getContext('2d');
                 const heightContext = heightCanvas.getContext('2d');
+                const nodalContext = nodalCanvas.getContext('2d');
+                const provincialContext = provincialCanvas.getContext('2d');
 
                 originalCanvas.width = binaryCanvas.width = overlayCanvas.width = img.width;
                 originalCanvas.height = binaryCanvas.height = overlayCanvas.height = img.height;
@@ -326,7 +330,7 @@ for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) {
     }
 }
 
-    console.log(`Nodal province map created with ${nodes.length} nodes over the full map.`);
+    logToConsole(`Nodal province map created with ${nodes.length} nodes over the full map.`);
     return nodes; // Nodes for province generation
 }
 
@@ -335,45 +339,68 @@ for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) {
 
 
 function createGeometricProvinceMap(nodes) {
-    const heightMapCanvas = document.getElementById('height-map-canvas');
-    const geometricCanvas = document.getElementById('geometric-province-canvas');
-    const geometricContext = geometricCanvas.getContext('2d');
-    
-    const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
-    const width = heightMapCanvas.width;
-    const height = heightMapCanvas.height;
-    const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, width, height).data;
+    const provincialCanvas = document.getElementById('geometric-province-canvas');
+    const provincialContext = provincialCanvas.getContext('2d');
+    const width = provincialCanvas.width;
+    const height = provincialCanvas.height;
 
-    geometricContext.clearRect(0, 0, width, height);
+    // Clear the canvas
+    provincialContext.clearRect(0, 0, width, height);
 
-    // Filter nodes to keep only those on land
-    const landNodes = nodes.filter(node => {
-        const index = (node.y * width + node.x) * 4;
-        return heightData[index] > 30; // Brightness threshold for land
-    });
-
-    // Generate Voronoi diagram using land nodes
-    const voronoi = new Voronoi();
+    // Define the bounding box for the Voronoi diagram
     const bbox = { xl: 0, xr: width, yt: 0, yb: height };
-    const voronoiDiagram = voronoi.compute(landNodes, bbox);
 
-    // Draw each province cell
-    voronoiDiagram.cells.forEach((cell, index) => {
-        const provinceColor = provinceColors[index % provinceColors.length];
-        geometricContext.fillStyle = provinceColor;
+    // Create Voronoi diagram with nodes
+    const voronoi = new Voronoi();
+    const diagram = voronoi.compute(nodes, bbox);
 
-        const region = cell.halfedges.map(edge => ({
-            x: edge.getStartpoint().x,
-            y: edge.getStartpoint().y
-        }));
+    // Define colors for provinces
+    const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
 
-        // Simplify the region's edges and draw
-        const simplifiedRegion = simplifyPolygon(region, 2); // Adjust tolerance as needed
-        drawPolygon(simplifiedRegion, geometricContext);
+    // Prepare ImageData object
+    const imgData = provincialContext.createImageData(width, height);
+    const data = imgData.data;
+
+    // Fill each cell in the ImageData
+    diagram.cells.forEach((cell, index) => {
+        const colorHex = provinceColors[index % provinceColors.length];
+        const [r, g, b] = hexToRgb(colorHex);
+
+        // Fill each pixel within the cell
+        const halfedges = cell.halfedges;
+        if (halfedges.length > 0) {
+            const path = new Path2D();
+            const start = halfedges[0].start;
+            path.moveTo(start.x, start.y);
+
+            halfedges.forEach(edge => {
+                const end = edge.end;
+                if (end) path.lineTo(end.x, end.y);
+            });
+            path.closePath();
+
+            // Rasterize the cell path
+            provincialContext.save();
+            provincialContext.clip(path);
+            provincialContext.fillStyle = colorHex;
+            provincialContext.fill();
+            provincialContext.restore();
+        }
     });
 
-    console.log("Geometric province map created with Voronoi-based land provinces.");
+    // Draw the ImageData onto the canvas
+    provincialContext.putImageData(imgData, 0, 0);
+
+    console.log("Geometric province map created and printed on the canvas.");
 }
+
+// Utility function to convert hex color to RGB array
+function hexToRgb(hex) {
+    const bigint = parseInt(hex.slice(1), 16);
+    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+}
+
+
 
 // Helper function to draw a simplified polygon region
 function drawPolygon(points, context) {
