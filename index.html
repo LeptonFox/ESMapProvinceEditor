@@ -339,62 +339,75 @@ for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) {
 
 
 function createGeometricProvinceMap(nodes) {
+    // Canvas setup
+    const heightMapCanvas = document.getElementById('height-map-canvas');
     const provincialCanvas = document.getElementById('geometric-province-canvas');
     const provincialContext = provincialCanvas.getContext('2d');
-    const width = provincialCanvas.width;
-    const height = provincialCanvas.height;
+    
+    const width = heightMapCanvas.width;
+    const height = heightMapCanvas.height;
+    const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, width, height).data;
 
-    // Clear the canvas
-    provincialContext.clearRect(0, 0, width, height);
-
-    // Define the bounding box for the Voronoi diagram
+    // Define bounding box based on height map
     const bbox = { xl: 0, xr: width, yt: 0, yb: height };
-
-    // Create Voronoi diagram with nodes
+    
+    // Create Voronoi diagram
     const voronoi = new Voronoi();
     const diagram = voronoi.compute(nodes, bbox);
 
-    // Define colors for provinces
+    // Define province colors and setup boundary color
     const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
+    const boundaryColor = "#000000"; // Black boundaries
 
-    // Prepare ImageData object
-    const imgData = provincialContext.createImageData(width, height);
-    const data = imgData.data;
+    // Clear the canvas and set size
+    provincialCanvas.width = width;
+    provincialCanvas.height = height;
+    provincialContext.clearRect(0, 0, width, height);
 
-    // Fill each cell in the ImageData
+    // Draw provinces based on Voronoi cells
     diagram.cells.forEach((cell, index) => {
         const colorHex = provinceColors[index % provinceColors.length];
-        const [r, g, b] = hexToRgb(colorHex);
+        provincialContext.fillStyle = colorHex;
+        provincialContext.strokeStyle = boundaryColor;
+        provincialContext.lineWidth = 1;
 
-        // Fill each pixel within the cell
+        // Draw each cell as a province with boundary
+        const path = new Path2D();
         const halfedges = cell.halfedges;
+        
         if (halfedges.length > 0) {
-            const path = new Path2D();
-            const start = halfedges[0].start;
+            const start = halfedges[0].getStartpoint();
             path.moveTo(start.x, start.y);
-
+            
             halfedges.forEach(edge => {
-                const end = edge.end;
-                if (end) path.lineTo(end.x, end.y);
+                const end = edge.getEndpoint();
+                path.lineTo(end.x, end.y);
             });
             path.closePath();
 
-            // Rasterize the cell path
+            // Mask province areas to land only
             provincialContext.save();
             provincialContext.clip(path);
-            provincialContext.fillStyle = colorHex;
-            provincialContext.fill();
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const isLand = heightData[idx] > 100; // Adjust threshold for land
+                    if (isLand && path.isPointInPath(x, y)) {
+                        provincialContext.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
             provincialContext.restore();
+
+            // Draw province boundary
+            provincialContext.stroke(path);
         }
     });
 
-    // Draw the ImageData onto the canvas
-    provincialContext.putImageData(imgData, 0, 0);
-
-    logToConsole("Geometric province map created and printed on the canvas.");
+    logToConsole("Geometric province map with boundaries created.");
 }
 
-// Utility function to convert hex color to RGB array
+// Helper function to convert hex color to RGB array
 function hexToRgb(hex) {
     const bigint = parseInt(hex.slice(1), 16);
     return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
