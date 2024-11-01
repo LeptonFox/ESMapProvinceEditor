@@ -347,23 +347,26 @@ function createGeometricProvinceMap(nodes) {
     const height = heightMapCanvas.height;
     const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, width, height).data;
 
-    // Set up bounding box
     const bbox = { xl: 0, xr: width, yt: 0, yb: height };
 
-    // Create Voronoi diagram
+    // Filter nodes to ensure they are within bounds
+    nodes = nodes.filter(node => node.x > 0 && node.x < width && node.y > 0 && node.y < height);
+    logToConsole(`Filtered nodes:`, nodes);
+
     const voronoi = new Voronoi();
     const diagram = voronoi.compute(nodes, bbox);
+    logToConsole("Voronoi diagram:", diagram);
 
-    // Define province colors and set boundary color to black
+    // Color setup
     const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
-    const boundaryColor = "#000000"; // Black for boundaries
+    const boundaryColor = "#000000";
 
-    // Clear canvas and set dimensions
+    // Prepare canvas
     provincialCanvas.width = width;
     provincialCanvas.height = height;
     provincialContext.clearRect(0, 0, width, height);
 
-    // Draw provinces and debug the fill
+    // Process each cell to draw provinces
     diagram.cells.forEach((cell, index) => {
         const colorHex = provinceColors[index % provinceColors.length];
         provincialContext.fillStyle = colorHex;
@@ -383,11 +386,13 @@ function createGeometricProvinceMap(nodes) {
             });
             path.closePath();
 
-            // Temporary fill without clipping to debug display issue
+            // Fill and stroke the path
             provincialContext.fill(path);
             provincialContext.stroke(path);
 
             logToConsole(`Province ${index} filled with color ${colorHex}.`);
+        } else {
+            logToConsole(`Cell ${index} has no halfedges.`);
         }
     });
 
