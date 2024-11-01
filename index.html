@@ -281,36 +281,48 @@ function createNodalProvinceMap() {
     const nodes = [];
     const minDistance = Math.max(10, 30 / density); // Minimum distance between nodes
 
-    // Randomized node placement across the land area
-    for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) { // Random vertical intervals for less regular pattern
-        for (let x = 0; x < width; x += Math.floor(Math.random() * 10 + 5)) { // Random horizontal intervals
+for (let y = 0; y < height; y += Math.floor(Math.random() * 10 + 5)) {
+    for (let x = 0; x < width; x += Math.floor(Math.random() * 10 + 5)) {
 
-            const combinedValue = combinedMap[y][x];
-            const placementChance = Math.random(); // Random chance for each position
+        const index = (y * width + x) * 4;
+        const brightness = heightData[index]; // Brightness for height
+        const noiseValue = noiseMap[y][x]; // Noise value at (x, y)
+        
+        // Skip water areas based on brightness threshold
+        if (brightness < 20) continue; // Water areas
 
-            // Favor node placement if combined value is within bounds and placementChance is met
-            if (combinedValue > 0.2 && combinedValue < 0.7 && placementChance < 0.3) { 
-                let isFarEnough = true;
-                
-                // Check minimum distance from other nodes
-                for (let i = 0; i < nodes.length; i++) {
-                    const dx = nodes[i].x - x;
-                    const dy = nodes[i].y - y;
-                    if (dx * dx + dy * dy < minDistance * minDistance) {
-                        isFarEnough = false;
-                        break;
-                    }
+        // Push nodes away from high-altitude areas (very bright regions)
+       if (brightness > 200) { // Altitude threshold
+            x += Math.random() * 5 - 2.5; // Random x offset
+            y += Math.random() * 5 - 2.5; // Random y offset
+            x = Math.max(0, Math.min(x, width - 1));
+            y = Math.max(0, Math.min(y, height - 1));
+            const newIndex = (Math.round(y) * width + Math.round(x)) * 4;
+            const newBrightness = heightData[newIndex];
+            if (newBrightness < 30) continue; // Skip if the shifted position is on water
+        }
+
+        const combinedValue = (1 - noiseValue) * (1 - brightness / 255);
+        const placementChance = Math.random();
+
+        if (combinedValue > 0.2 && combinedValue < 0.7 && placementChance < 0.3) { 
+            let isFarEnough = true;
+            for (let i = 0; i < nodes.length; i++) {
+                const dx = nodes[i].x - x;
+                const dy = nodes[i].y - y;
+                if (dx * dx + dy * dy < minDistance * minDistance) {
+                    isFarEnough = false;
+                    break;
                 }
-
-                // Add node if it passes distance check
-                if (isFarEnough) {
-                    nodes.push({ x, y });
-                    nodalContext.fillStyle = 'red';
-                    nodalContext.fillRect(x, y, 2, 2); // Draw node as a small red dot
-                }
+            }
+            if (isFarEnough) {
+                nodes.push({ x, y });
+                nodalContext.fillStyle = 'red';
+                nodalContext.fillRect(x, y, 2, 2);
             }
         }
     }
+}
 
     console.log(`Nodal province map created with ${nodes.length} nodes over the full map.`);
     return nodes; // Nodes for province generation
