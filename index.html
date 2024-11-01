@@ -348,9 +348,20 @@ function createGeometricProvinceMap(nodes) {
     const heightData = heightMapCanvas.getContext('2d').getImageData(0, 0, width, height).data;
     const bbox = { xl: 0, xr: width, yt: 0, yb: height };
 
+    // Initialize Voronoi
     const voronoi = new Voronoi();
+    console.log("Voronoi initialized:", voronoi);
+
+    // Generate Voronoi diagram
     const diagram = voronoi.compute(nodes, bbox);
-    console.log("Voronoi diagram computed.");
+    console.log("Voronoi diagram:", diagram);
+
+    if (diagram && diagram.cells.length > 0) {
+        console.log("Voronoi diagram generated successfully.");
+    } else {
+        console.error("Failed to generate Voronoi diagram or no cells found.");
+        return; // Exit if the diagram isn't generated correctly
+    }
 
     const provinceColors = ["#A3D9A5", "#E1D89F", "#B3A9D4", "#DFB6C0"];
     const boundaryColor = "#000000";
