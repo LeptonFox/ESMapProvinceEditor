@@ -363,43 +363,51 @@ function getRedNodesFromNodalMap() {
     return redNodes;
 }
 
-function getClusterCenter(x, y, imageData, width, height, visited) {
-    let sumX = 0, sumY = 0, count = 0;
-    const queue = [{ x, y }];
-    const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function getClusterCenters(nodalContext, width, height) {
+    const imageData = nodalContext.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const visited = new Set();
+    const nodes = [];
 
-    while (queue.length > 0) {
-        const { x: cx, y: cy } = queue.shift();
-        const index = (cy * width + cx) * 4;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const index = (y * width + x) * 4;
+            if (data[index] === 255 && data[index + 1] === 0 && data[index + 2] === 0 && !visited.has(index)) { // red pixel
+                const cluster = [];
+                const queue = [{ x, y }];
 
-        // Skip if not red or already visited
-        if (visited.has(`${cx},${cy}`)) continue;
-        visited.add(`${cx},${cy}`);
+                while (queue.length) {
+                    const { x, y } = queue.shift();
+                    const index = (y * width + x) * 4;
 
-        // Accumulate position
-        sumX += cx;
-        sumY += cy;
-        count++;
+                    if (
+                        x >= 0 && x < width &&
+                        y >= 0 && y < height &&
+                        !visited.has(index) &&
+                        data[index] === 255 && data[index + 1] === 0 && data[index + 2] === 0
+                    ) {
+                        visited.add(index);
+                        cluster.push({ x, y });
 
-        // Check neighbors to add connected red pixels to the queue
-        directions.forEach(([dx, dy]) => {
-            const nx = cx + dx;
-            const ny = cy + dy;
-            const nIndex = (ny * width + nx) * 4;
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited.has(`${nx},${ny}`)) {
-                const nr = imageData[nIndex];
-                const ng = imageData[nIndex + 1];
-                const nb = imageData[nIndex + 2];
-                if (nr > 200 && ng < 100 && nb < 100) {
-                    queue.push({ x: nx, y: ny });
+                        // Check neighbors
+                        queue.push({ x: x + 1, y });
+                        queue.push({ x: x - 1, y });
+                        queue.push({ x, y: y + 1 });
+                        queue.push({ x, y: y - 1 });
+                    }
+                }
+
+                if (cluster.length > 0) {
+                    const centerX = Math.round(cluster.reduce((sum, pt) => sum + pt.x, 0) / cluster.length);
+                    const centerY = Math.round(cluster.reduce((sum, pt) => sum + pt.y, 0) / cluster.length);
+                    nodes.push({ x: centerX, y: centerY });
                 }
             }
-        });
+        }
     }
-
-    // Return the center of the cluster
-    return { x: Math.round(sumX / count), y: Math.round(sumY / count) };
+    return nodes;
 }
+
 
         
 
